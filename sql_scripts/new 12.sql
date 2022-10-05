@@ -1,0 +1,1 @@
+ REGEXP_REPLACE(description, CONCAT('[\\[\,\(\.])(', 3942 ,')([\,\)\.\\]])'), CONCAT('$1',4,'$3'))
