@@ -47,25 +47,8 @@ public class TestSetToVerifiesListener implements TrackerItemListener {
                 return;
             }
 
-            List<List<TrackerItemReferenceWrapperDto>> newTestCases = new ArrayList<>();
-            List<List<TrackerItemReferenceWrapperDto>> oldTestCases = new ArrayList<>();
-
-            for(int i = 0; i < newTestRun.getTableRowCount(0); i++) {
-                newTestCases.add(newTestRun.getTableReferenceCell(0,i,0));
-            }
-
-            for(int i = 0; i < oldTestRun.getTableRowCount(0); i++) {
-                oldTestCases.add(oldTestRun.getTableReferenceCell(0,i,0));
-            }
-
-            List<TrackerItemReferenceWrapperDto> flatOldTestCases =
-                    oldTestCases.stream()
-                            .flatMap(List::stream)
-                            .collect(Collectors.toList());
-            List<TrackerItemReferenceWrapperDto> flatNewTestCases =
-                    newTestCases.stream()
-                            .flatMap(List::stream)
-                            .collect(Collectors.toList());
+            List<TrackerItemReferenceWrapperDto> flatOldTestCases = createFlatListTestCases(oldTestRun);
+            List<TrackerItemReferenceWrapperDto> flatNewTestCases = createFlatListTestCases(newTestRun);
 
             if(flatOldTestCases.toString().equals(flatNewTestCases.toString())){
                 return;
@@ -82,6 +65,21 @@ public class TestSetToVerifiesListener implements TrackerItemListener {
             if(!removedTestCases.isEmpty())
             removedTestCases.forEach(testCase -> removeTestRunFromTestCase(newTestRun, testCase.getOriginalTrackerItem().getId(), event.getUser()));
         }
+    }
+
+    private List<TrackerItemReferenceWrapperDto> createFlatListTestCases(TrackerItemDto testRun) {
+        List<List<TrackerItemReferenceWrapperDto>> listOfTestCaseLists = new ArrayList<>();
+
+        for(int i = 0; i < testRun.getTableRowCount(0); i++) {
+            listOfTestCaseLists.add(testRun.getTableReferenceCell(0,i,0));
+        }
+
+        List<TrackerItemReferenceWrapperDto> flatTestCases =
+                listOfTestCaseLists.stream()
+                        .flatMap(List::stream)
+                        .collect(Collectors.toList());
+
+        return flatTestCases;
     }
 
     private void addTestRunToTestCase(TrackerItemDto testRun, TrackerItemDto testCase, UserDto user) {
