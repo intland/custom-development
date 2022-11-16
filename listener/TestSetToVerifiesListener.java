@@ -29,6 +29,14 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
+/*
+ * This listener is triggered when a Test Set is updated.
+ * If a Test Case is added to a Test Set, then this listener is responsible for adding the Test Set to
+ * the Test Case's 'Verifies' choice field. If a Test Case is removed from a Test Set, it will remove the Test Set
+ * from the Test Case's 'Verifies' choice field. It is a workaround for the Test Sets coverage problem when
+ * the results are visualized as 'NO RESULT YET' independently of the Test Set was executed or not.
+*/
+
 @Component("testSetToVerifiesListener")
 public class TestSetToVerifiesListener implements TrackerItemListener {
 
