@@ -21,6 +21,7 @@ import com.intland.codebeamer.persistence.dto.TrackerItemDto;
 import com.intland.codebeamer.persistence.dto.TrackerItemReferenceWrapperDto;
 import com.intland.codebeamer.persistence.dto.TrackerTypeDto;
 import com.intland.codebeamer.persistence.dto.UserDto;
+import com.intland.codebeamer.persistence.dto.base.DescribeableDto;
 import org.apache.log4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
@@ -68,11 +69,50 @@ public class TestSetToVerifiesListener implements TrackerItemListener {
             removeItemsFromList(flatNewTestCases, removedTestCases);
 
             if(!addedTestCases.isEmpty())
-            addedTestCases.forEach(testCase -> addTestRunToTestCase(newTestRun,testCase.getOriginalTrackerItem().clone(),event.getUser()));
+                addedTestCases.forEach(testCase -> addTestRunToTestCase(newTestRun,testCase.getOriginalTrackerItem().clone(),event.getUser()));
 
             if(!removedTestCases.isEmpty())
-            removedTestCases.forEach(testCase -> removeTestRunFromTestCase(newTestRun, testCase.getOriginalTrackerItem().getId(), event.getUser()));
+                removedTestCases.forEach(testCase -> removeTestRunFromTestCase(newTestRun, testCase.getOriginalTrackerItem().getId(), event.getUser()));
         }
+        else if(event.getSource().getTracker().isA(TrackerTypeDto.TESTCASE)) {
+            TrackerItemDto newTestCase = event.getSource().clone();
+            TrackerItemDto oldTestCase = event.getSecondarySource().clone();
+
+            if(newTestCase == null || oldTestCase == null) {
+                return;
+            }
+
+            List<TrackerItemDto> oldTestRuns = (List<TrackerItemDto>) oldTestCase.getSubjects();
+            List<TrackerItemDto> newTestRuns = (List<TrackerItemDto>) newTestCase.getSubjects();
+            if(oldTestRuns==null)
+                oldTestRuns = new ArrayList<>();
+            if(newTestRuns==null)
+                newTestRuns = new ArrayList<>();
+
+            if(oldTestRuns.toString().equals(newTestRuns.toString())) {
+                return;
+            }
+            List<TrackerItemDto> addedTestRuns = new ArrayList<>(newTestRuns);
+            removeItemsFromList(oldTestRuns, addedTestRuns);
+            List<TrackerItemDto> removedTestRuns = new ArrayList<>(oldTestRuns);
+            removeItemsFromList(newTestRuns, removedTestRuns);
+
+            if(removedTestRuns != null) {
+                log.info("removed test runs:" + removedTestRuns);
+                log.info("removed test run test cases: " + createFlatListTestCases(removedTestRuns.get(0)));
+            }
+            if(addedTestRuns != null)
+                log.info("added test runs:" + addedTestRuns);
+
+        }
+    }
+
+    private void removeTestCaseFromTestRun(TrackerItemDto testCase, TrackerItemDto testRun) {
+        List<TrackerItemReferenceWrapperDto> testCases = createFlatListTestCases(testRun);
+    }
+
+    private void addTestCaseToTestRun(TrackerItemDto testCase, TrackerItemDto testRun) {
+        List<TrackerItemReferenceWrapperDto> testCases = createFlatListTestCases(testRun);
     }
 
     private List<TrackerItemReferenceWrapperDto> createFlatListTestCases(TrackerItemDto testRun) {
@@ -119,9 +159,11 @@ public class TestSetToVerifiesListener implements TrackerItemListener {
         }
     }
 
-    private void removeItemsFromList(List<TrackerItemReferenceWrapperDto> listToRemove, List<TrackerItemReferenceWrapperDto> originalList) {
-        listToRemove.forEach(toRemove -> {
-            originalList.removeIf(item -> item.getId().equals(toRemove.getId()));
-        });
+    private void removeItemsFromList(List<? extends DescribeableDto> listToRemove, List<? extends DescribeableDto> originalList) {
+        if(listToRemove != null) {
+            listToRemove.forEach(toRemove -> {
+                originalList.removeIf(item -> item.getId().equals(toRemove.getId()));
+            });
+        }
     }
 }
