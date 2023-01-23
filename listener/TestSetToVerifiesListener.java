@@ -28,6 +28,7 @@ import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 /*
@@ -49,15 +50,15 @@ public class TestSetToVerifiesListener implements TrackerItemListener {
     public void trackerItemUpdated(BaseEvent<TrackerItemDto, TrackerItemDto, ActionData> event) throws VetoException {
         if(event.getSource().getTracker().isA(TrackerTypeDto.TESTSET)) {
 
-            TrackerItemDto newTestRun = event.getSource().clone();
-            TrackerItemDto oldTestRun = event.getSecondarySource().clone();
+            TrackerItemDto newTestSet = event.getSource().clone();
+            TrackerItemDto oldTestSet = event.getSecondarySource().clone();
 
-            if(newTestRun == null || oldTestRun == null) {
+            if(newTestSet == null || oldTestSet == null) {
                 return;
             }
 
-            List<TrackerItemReferenceWrapperDto> flatOldTestCases = createFlatListTestCases(oldTestRun);
-            List<TrackerItemReferenceWrapperDto> flatNewTestCases = createFlatListTestCases(newTestRun);
+            List<TrackerItemReferenceWrapperDto> flatOldTestCases = createFlatListTestCases(oldTestSet);
+            List<TrackerItemReferenceWrapperDto> flatNewTestCases = createFlatListTestCases(newTestSet);
 
             if(flatOldTestCases.toString().equals(flatNewTestCases.toString())){
                 return;
@@ -69,10 +70,10 @@ public class TestSetToVerifiesListener implements TrackerItemListener {
             removeItemsFromList(flatNewTestCases, removedTestCases);
 
             if(!addedTestCases.isEmpty())
-                addedTestCases.forEach(testCase -> addTestRunToTestCase(newTestRun,testCase.getOriginalTrackerItem().clone(),event.getUser()));
+                addedTestCases.forEach(testCase -> addTestSetToTestCase(newTestSet,testCase.getOriginalTrackerItem().clone(),event.getUser()));
 
             if(!removedTestCases.isEmpty())
-                removedTestCases.forEach(testCase -> removeTestRunFromTestCase(newTestRun, testCase.getOriginalTrackerItem().getId(), event.getUser()));
+                removedTestCases.forEach(testCase -> removeTestSetFromTestCase(newTestSet, testCase.getOriginalTrackerItem().getId(), event.getUser()));
         }
         else if(event.getSource().getTracker().isA(TrackerTypeDto.TESTCASE)) {
             TrackerItemDto newTestCase = event.getSource().clone();
@@ -82,44 +83,57 @@ public class TestSetToVerifiesListener implements TrackerItemListener {
                 return;
             }
 
-            List<TrackerItemDto> oldTestRuns = (List<TrackerItemDto>) oldTestCase.getSubjects();
-            List<TrackerItemDto> newTestRuns = (List<TrackerItemDto>) newTestCase.getSubjects();
-            if(oldTestRuns==null)
-                oldTestRuns = new ArrayList<>();
-            if(newTestRuns==null)
-                newTestRuns = new ArrayList<>();
+            List<TrackerItemDto> oldTestSets = (List<TrackerItemDto>) oldTestCase.getSubjects();
+            List<TrackerItemDto> newTestSets = (List<TrackerItemDto>) newTestCase.getSubjects();
+            if(oldTestSets==null)
+                oldTestSets = new ArrayList<>();
+            if(newTestSets==null)
+                newTestSets = new ArrayList<>();
 
-            if(oldTestRuns.toString().equals(newTestRuns.toString())) {
+            if(oldTestSets.toString().equals(newTestSets.toString())) {
                 return;
             }
-            List<TrackerItemDto> addedTestRuns = new ArrayList<>(newTestRuns);
-            removeItemsFromList(oldTestRuns, addedTestRuns);
-            List<TrackerItemDto> removedTestRuns = new ArrayList<>(oldTestRuns);
-            removeItemsFromList(newTestRuns, removedTestRuns);
+            List<TrackerItemDto> addedTestSets = new ArrayList<>(newTestSets);
+            removeItemsFromList(oldTestSets, addedTestSets);
+            List<TrackerItemDto> removedTestSets = new ArrayList<>(oldTestSets);
+            removeItemsFromList(newTestSets, removedTestSets);
 
-            if(removedTestRuns != null) {
-                log.info("removed test runs:" + removedTestRuns);
-                log.info("removed test run test cases: " + createFlatListTestCases(removedTestRuns.get(0)));
+
+
+            if(removedTestSets != null) {
+                log.info("removed test Sets:" + removedTestSets);
+                removedTestSets.forEach(testSet -> removeTestCaseFromTestSet(newTestCase, testSet));
             }
-            if(addedTestRuns != null)
-                log.info("added test runs:" + addedTestRuns);
+            if(addedTestSets != null) {
+                log.info("added test Sets:" + addedTestSets);
+                addedTestSets.forEach(testSet -> addTestCaseToTestSet(newTestCase, testSet.clone()));
+            }
 
         }
     }
 
-    private void removeTestCaseFromTestRun(TrackerItemDto testCase, TrackerItemDto testRun) {
-        List<TrackerItemReferenceWrapperDto> testCases = createFlatListTestCases(testRun);
+    private void removeTestCaseFromTestSet(TrackerItemDto testCase, TrackerItemDto testSet) {
+        List<TrackerItemReferenceWrapperDto> testCases = createFlatListTestCases(testSet);
+        log.info("removed table test cases" + testCases.get(0) + testCases.get(1));
+        List<Map<Integer, String>> table = testSet.getTable(0);
+        table.forEach(row -> {
+            log.info("tableRow:" + row);
+        });
+        table.stream().filter(row -> !row.get(0).contains(testCase.toString().substring(10,13)));
+        testSet.setTable(0,table);
     }
 
-    private void addTestCaseToTestRun(TrackerItemDto testCase, TrackerItemDto testRun) {
-        List<TrackerItemReferenceWrapperDto> testCases = createFlatListTestCases(testRun);
+
+    private void addTestCaseToTestSet(TrackerItemDto testCase, TrackerItemDto testSet) {
+        List<TrackerItemReferenceWrapperDto> testCases = createFlatListTestCases(testSet);
+        log.info("added table test cases" + testCases);
     }
 
-    private List<TrackerItemReferenceWrapperDto> createFlatListTestCases(TrackerItemDto testRun) {
+    private List<TrackerItemReferenceWrapperDto> createFlatListTestCases(TrackerItemDto testSet) {
         List<List<TrackerItemReferenceWrapperDto>> listOfTestCaseLists = new ArrayList<>();
 
-        for(int i = 0; i < testRun.getTableRowCount(0); i++) {
-            listOfTestCaseLists.add(testRun.getTableReferenceCell(0,i,0));
+        for(int i = 0; i < testSet.getTableRowCount(0); i++) {
+            listOfTestCaseLists.add(testSet.getTableReferenceCell(0,i,0));
         }
 
         List<TrackerItemReferenceWrapperDto> flatTestCases =
@@ -130,13 +144,13 @@ public class TestSetToVerifiesListener implements TrackerItemListener {
         return flatTestCases;
     }
 
-    private void addTestRunToTestCase(TrackerItemDto testRun, TrackerItemDto testCase, UserDto user) {
-        List<TrackerItemDto> originalTestRuns = new ArrayList<>();
+    private void addTestSetToTestCase(TrackerItemDto testSet, TrackerItemDto testCase, UserDto user) {
+        List<TrackerItemDto> originalTestSets = new ArrayList<>();
         if(testCase.getSubjects() != null) {
-            originalTestRuns = (List<TrackerItemDto>) testCase.getSubjects();
+            originalTestSets = (List<TrackerItemDto>) testCase.getSubjects();
         }
-        originalTestRuns.add(testRun);
-        testCase.setSubjects(originalTestRuns);
+        originalTestSets.add(testSet);
+        testCase.setSubjects(originalTestSets);
         try {
             trackerItemManager.update(user, testCase, null);
         } catch (Exception e) {
@@ -144,13 +158,13 @@ public class TestSetToVerifiesListener implements TrackerItemListener {
         }
     }
 
-    private void removeTestRunFromTestCase(TrackerItemDto testRun, Integer testCaseId, UserDto user) {
+    private void removeTestSetFromTestCase(TrackerItemDto testSet, Integer testCaseId, UserDto user) {
         TrackerItemDto testCase = trackerItemManager.findById(user, testCaseId).clone();
-        List<TrackerItemDto> originalTestRuns;
+        List<TrackerItemDto> originalTestSets;
         if(testCase.getSubjects() != null) {
-            originalTestRuns = (List<TrackerItemDto>) testCase.getSubjects();
-            originalTestRuns.removeIf(item -> item.getId().equals(testRun.getId()));
-            testCase.setSubjects(originalTestRuns);
+            originalTestSets = (List<TrackerItemDto>) testCase.getSubjects();
+            originalTestSets.removeIf(item -> item.getId().equals(testSet.getId()));
+            testCase.setSubjects(originalTestSets);
             try {
                 trackerItemManager.update(user, testCase, null);
             } catch (Exception e) {
