@@ -12,7 +12,6 @@
 
 package com.intland.codebeamer.event.impl;
 
-import com.intland.codebeamer.controller.testmanagement.testset.AssignTestCasesToSetsController;
 import com.intland.codebeamer.event.BaseEvent;
 import com.intland.codebeamer.event.TrackerItemListener;
 import com.intland.codebeamer.event.util.VetoException;
@@ -34,16 +33,13 @@ import java.util.stream.Collectors;
  * the results are visualized as 'NO RESULT YET' independently of the Test Set was executed or not.
  */
 
-@Component("testSetToVerifiesListener")
-public class TestSetToVerifiesListener implements TrackerItemListener {
+@Component("testSetAndTestCaseConnector")
+public class TestSetAndTestCaseConnector implements TrackerItemListener {
 
     @Autowired
     TrackerItemManager trackerItemManager;
 
-    @Autowired
-    private AssignTestCasesToSetsController assignTestCasesToSetsController;
-
-    protected static final Logger log = Logger.getLogger(com.intland.codebeamer.event.impl.TestSetToVerifiesListener.class);
+    protected static final Logger log = Logger.getLogger(com.intland.codebeamer.event.impl.TestSetAndTestCaseConnector.class);
 
     @Override
     public void trackerItemUpdated(BaseEvent<TrackerItemDto, TrackerItemDto, ActionData> event) throws VetoException {
@@ -55,17 +51,17 @@ public class TestSetToVerifiesListener implements TrackerItemListener {
                 return;
             }
 
-            List<TrackerItemReferenceWrapperDto> flatOldTestCases = createFlatListTestCasesWithDto(oldTestSet);
-            List<TrackerItemReferenceWrapperDto> flatNewTestCases = createFlatListTestCasesWithDto(newTestSet);
+            List<TrackerItemReferenceWrapperDto> oldTestCases = getTestCasesByDto(oldTestSet);
+            List<TrackerItemReferenceWrapperDto> newTestCases = getTestCasesByDto(newTestSet);
 
-            if(flatOldTestCases.toString().equals(flatNewTestCases.toString())){
+            if(oldTestCases.toString().equals(newTestCases.toString())){
                 return;
             }
 
-            List<TrackerItemReferenceWrapperDto> addedTestCases = new ArrayList<>(flatNewTestCases);
-            removeItemsFromList(flatOldTestCases, addedTestCases);
-            List<TrackerItemReferenceWrapperDto> removedTestCases = new ArrayList<>(flatOldTestCases);
-            removeItemsFromList(flatNewTestCases, removedTestCases);
+            List<TrackerItemReferenceWrapperDto> addedTestCases = new ArrayList<>(newTestCases);
+            removeItemsFromList(oldTestCases, addedTestCases);
+            List<TrackerItemReferenceWrapperDto> removedTestCases = new ArrayList<>(oldTestCases);
+            removeItemsFromList(newTestCases, removedTestCases);
 
             if(!addedTestCases.isEmpty())
                 addedTestCases.forEach(testCase -> addTestSetToTestCase(newTestSet,testCase.getOriginalTrackerItem().clone(),event));
@@ -108,11 +104,9 @@ public class TestSetToVerifiesListener implements TrackerItemListener {
 
 
             if(!removedTestSets.isEmpty()) {
-                log.info("removed test Sets:" + removedTestSets);
                 removedTestSets.forEach(testSet -> removeTestCaseFromTestSet(newTestCase, testSet, event));
             }
             if(!addedTestSets.isEmpty()) {
-                log.info("added test Sets:" + addedTestSets);
                 addedTestSets.forEach(testSet -> addTestCaseToTestSet(newTestCase, testSet.getId(), event));
             }
         }
@@ -122,17 +116,9 @@ public class TestSetToVerifiesListener implements TrackerItemListener {
         if (!event.isPreEvent()) {
             return;
         }
-        List<TrackerItemReferenceWrapperDto> testCases = createFlatListTestCasesWithDao(testSet);
+        List<TrackerItemReferenceWrapperDto> testCases = getTestCasesByDao(testSet);
         if(testCases.removeIf(testCase -> testCase.getOriginalTrackerItem().getId().equals(testCaseToRemove.getId()))) {
-            testSet.setTableColumn(0,0, new ArrayList<>());
-            for(int i = 0; i < testCases.size(); i++) {
-                testSet.setTableReferenceCell(0,i,0, new TrackerItemReferenceWrapperDto(testCases.get(i)));
-            }
-            try {
-                trackerItemManager.getTrackerItemDao().update(testSet);
-            } catch (Exception e) {
-                throw new RuntimeException(e);
-            }
+            setUpdatedTestCasesInTestSet(testSet,testCases);
         }
     }
 
@@ -142,22 +128,26 @@ public class TestSetToVerifiesListener implements TrackerItemListener {
             return;
         }
         TrackerItemDto testSet = trackerItemManager.getTrackerItemDao().findById(testSetId).clone();
-        List<TrackerItemReferenceWrapperDto> testCases = createFlatListTestCasesWithDao(testSet);
+        List<TrackerItemReferenceWrapperDto> testCases = getTestCasesByDao(testSet);
         if(!testCases.contains(testCase)){
             testCases.add(TrackerItemReferenceWrapperDto.wrap(testCase));
-            testSet.setTableColumn(0,0, new ArrayList<>());
-            for(int i = 0; i < testCases.size(); i++) {
-                testSet.setTableReferenceCell(0,i,0, new TrackerItemReferenceWrapperDto(testCases.get(i)));
-            }
-            try {
-                trackerItemManager.getTrackerItemDao().update(testSet);
-            } catch (Exception e) {
-                throw new RuntimeException(e);
-            }
+            setUpdatedTestCasesInTestSet(testSet,testCases);
         }
     }
 
-    private List<TrackerItemReferenceWrapperDto> createFlatListTestCasesWithDao(TrackerItemDto testSet) {
+    private void setUpdatedTestCasesInTestSet(TrackerItemDto testSet, List<TrackerItemReferenceWrapperDto> testCases) {
+        testSet.setTableColumn(0,0, new ArrayList<>());
+        for(int i = 0; i < testCases.size(); i++) {
+            testSet.setTableReferenceCell(0,i,0, new TrackerItemReferenceWrapperDto(testCases.get(i)));
+        }
+        try {
+            trackerItemManager.getTrackerItemDao().update(testSet);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    private List<TrackerItemReferenceWrapperDto> getTestCasesByDao(TrackerItemDto testSet) {
         List<List<TrackerItemReferenceWrapperDto>> listOfTestCaseLists = new ArrayList<>();
 
         TrackerItemDto newTestSet = trackerItemManager.getTrackerItemDao().findById(testSet.getId());
@@ -174,7 +164,7 @@ public class TestSetToVerifiesListener implements TrackerItemListener {
         return flatTestCases;
     }
 
-    private List<TrackerItemReferenceWrapperDto> createFlatListTestCasesWithDto(TrackerItemDto testSet) {
+    private List<TrackerItemReferenceWrapperDto> getTestCasesByDto(TrackerItemDto testSet) {
         List<List<TrackerItemReferenceWrapperDto>> listOfTestCaseLists = new ArrayList<>();
 
         for(int i = 0; i < testSet.getTableRowCount(0); i++) {
