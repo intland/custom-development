@@ -1,13 +1,13 @@
 /*
- * Copyright by Intland Software
+ * Copyright by PTC
  *
  * All rights reserved.
  *
  * This software is the confidential and proprietary information
- * of Intland Software. ("Confidential Information"). You
+ * of PTC. ("Confidential Information"). You
  * shall not disclose such Confidential Information and shall use
  * it only in accordance with the terms of the license agreement
- * you entered into with Intland.
+ * you entered into with PTC.
  */
 
 package com.intland.codebeamer.event.impl;
