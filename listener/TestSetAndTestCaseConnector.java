@@ -43,6 +43,15 @@ public class TestSetAndTestCaseConnector implements TrackerItemListener {
 
     @Override
     public void trackerItemUpdated(BaseEvent<TrackerItemDto, TrackerItemDto, ActionData> event) throws VetoException {
+        Boolean triggeredBySameListener;
+        if(event.getRequest() != null && event.getRequest().getAttribute("triggeredBySameListener") != null && event.getRequest().getAttribute("triggeredBySameListener") instanceof Boolean) {
+            triggeredBySameListener = (Boolean) event.getRequest().getAttribute("triggeredBySameListener");
+        } else {
+            triggeredBySameListener = Boolean.FALSE;
+        }
+        if(triggeredBySameListener) {
+            return;
+        }
         if(event.getSource().getTracker().isA(TrackerTypeDto.TESTSET)) {
             TrackerItemDto newTestSet = event.getSource().clone();
             TrackerItemDto oldTestSet = event.getSecondarySource().clone();
@@ -69,16 +78,6 @@ public class TestSetAndTestCaseConnector implements TrackerItemListener {
             if(!removedTestCases.isEmpty())
                 removedTestCases.forEach(testCase -> removeTestSetFromTestCase(newTestSet, testCase.getId(),event));
         } else if(event.getSource().getTracker().isA(TrackerTypeDto.TESTCASE)) {
-            Boolean fromListener;
-            if(event.getRequest() != null && event.getRequest().getAttribute("fromListener") != null && event.getRequest().getAttribute("fromListener") instanceof Boolean) {
-                fromListener = (Boolean) event.getRequest().getAttribute("fromListener");
-            } else {
-                fromListener = Boolean.FALSE;
-            }
-            if(fromListener) {
-                return;
-            }
-
             TrackerItemDto newTestCase = event.getSource().clone();
             TrackerItemDto oldTestCase = event.getSecondarySource().clone();
 
@@ -191,7 +190,9 @@ public class TestSetAndTestCaseConnector implements TrackerItemListener {
             originalTestSets.add(testSet);
             testCase.setSubjects(originalTestSets);
             try {
-                trackerItemManager.update(event.getUser(), testCase, null);
+                ActionData actionData = new ActionData(event.getRequest());
+                actionData.getRequest().setAttribute("triggeredBySameListener", Boolean.TRUE);
+                trackerItemManager.update(event.getUser(), testCase, actionData);
             } catch (Exception e) {
                 log.error(e.getMessage());
             }
@@ -210,7 +211,7 @@ public class TestSetAndTestCaseConnector implements TrackerItemListener {
             testCase.setSubjects(originalTestSets);
             try {
                 ActionData actionData = new ActionData(event.getRequest());
-                actionData.getRequest().setAttribute("fromListener", Boolean.TRUE);
+                actionData.getRequest().setAttribute("triggeredBySameListener", Boolean.TRUE);
                 trackerItemManager.update(event.getUser(), testCase, actionData);
             } catch (Exception e) {
                 log.error(e.getMessage());
