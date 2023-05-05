@@ -19,6 +19,7 @@ import com.intland.codebeamer.manager.TrackerItemManager;
 import com.intland.codebeamer.manager.util.ActionData;
 import com.intland.codebeamer.persistence.dto.*;
 import com.intland.codebeamer.persistence.dto.base.DescribeableDto;
+import org.apache.commons.collections.CollectionUtils;
 import org.apache.log4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
@@ -37,12 +38,15 @@ import java.util.stream.Collectors;
 public class TestSetAndTestCaseConnector implements TrackerItemListener {
 
     @Autowired
-    TrackerItemManager trackerItemManager;
+    private TrackerItemManager trackerItemManager;
 
-    protected static final Logger log = Logger.getLogger(com.intland.codebeamer.event.impl.TestSetAndTestCaseConnector.class);
+    private static final Logger log = Logger.getLogger(com.intland.codebeamer.event.impl.TestSetAndTestCaseConnector.class);
 
     @Override
     public void trackerItemUpdated(BaseEvent<TrackerItemDto, TrackerItemDto, ActionData> event) throws VetoException {
+        if(event.getSource() == null || event.getSecondarySource() == null) {
+            return;
+        }
         Boolean triggeredBySameListener;
         if(event.getRequest() != null && event.getRequest().getAttribute("triggeredBySameListener") != null && event.getRequest().getAttribute("triggeredBySameListener") instanceof Boolean) {
             triggeredBySameListener = (Boolean) event.getRequest().getAttribute("triggeredBySameListener");
@@ -63,7 +67,7 @@ public class TestSetAndTestCaseConnector implements TrackerItemListener {
             List<TrackerItemReferenceWrapperDto> oldTestCases = getTestCasesByDto(oldTestSet);
             List<TrackerItemReferenceWrapperDto> newTestCases = getTestCasesByDto(newTestSet);
 
-            if(oldTestCases.toString().equals(newTestCases.toString())){
+            if(CollectionUtils.isEqualCollection(oldTestCases, newTestCases)) {
                 return;
             }
 
@@ -72,11 +76,13 @@ public class TestSetAndTestCaseConnector implements TrackerItemListener {
             List<TrackerItemReferenceWrapperDto> removedTestCases = new ArrayList<>(oldTestCases);
             removeItemsFromList(newTestCases, removedTestCases);
 
-            if(!addedTestCases.isEmpty())
+            if(!addedTestCases.isEmpty()) {
                 addedTestCases.forEach(testCase -> addTestSetToTestCase(newTestSet,testCase.getOriginalTrackerItem().clone(),event));
+            }
 
-            if(!removedTestCases.isEmpty())
+            if(!removedTestCases.isEmpty()) {
                 removedTestCases.forEach(testCase -> removeTestSetFromTestCase(newTestSet, testCase.getId(),event));
+            }
         } else if(event.getSource().getTracker().isA(TrackerTypeDto.TESTCASE)) {
             TrackerItemDto newTestCase = event.getSource().clone();
             TrackerItemDto oldTestCase = event.getSecondarySource().clone();
@@ -87,14 +93,20 @@ public class TestSetAndTestCaseConnector implements TrackerItemListener {
 
             List<TrackerItemDto> oldTestSets = (List<TrackerItemDto>) oldTestCase.getSubjects();
             List<TrackerItemDto> newTestSets = (List<TrackerItemDto>) newTestCase.getSubjects();
+
             if(oldTestSets==null)
                 oldTestSets = new ArrayList<>();
             if(newTestSets==null)
                 newTestSets = new ArrayList<>();
 
-            if(oldTestSets.toString().equals(newTestSets.toString())) {
+            if(!areAllItemsTestSets(oldTestSets) || !areAllItemsTestSets(newTestSets)) {
                 return;
             }
+
+            if(CollectionUtils.isEqualCollection(oldTestSets, newTestSets)) {
+                return;
+            }
+
             List<TrackerItemDto> addedTestSets = new ArrayList<>(newTestSets);
             removeItemsFromList(oldTestSets, addedTestSets);
             List<TrackerItemDto> removedTestSets = new ArrayList<>(oldTestSets);
@@ -225,5 +237,9 @@ public class TestSetAndTestCaseConnector implements TrackerItemListener {
                 originalList.removeIf(item -> item.getId().equals(toRemove.getId()));
             });
         }
+    }
+
+    private Boolean areAllItemsTestSets(List<TrackerItemDto> items) {
+        return items.stream().allMatch(item -> item.getTracker().isA(TrackerTypeDto.TESTSET));
     }
 }
