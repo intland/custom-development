@@ -129,7 +129,7 @@ public class TestSetAndTestCaseConnector implements TrackerItemListener {
         }
         List<TrackerItemReferenceWrapperDto> testCases = getTestCasesByDao(testSet);
         if(testCases.removeIf(testCase -> testCase.getOriginalTrackerItem().getId().equals(testCaseToRemove.getId()))) {
-            setUpdatedTestCasesInTestSet(testSet,testCases);
+            setUpdatedTestCasesInTestSet(testSet,testCases, event);
         }
     }
 
@@ -142,17 +142,19 @@ public class TestSetAndTestCaseConnector implements TrackerItemListener {
         List<TrackerItemReferenceWrapperDto> testCases = getTestCasesByDao(testSet);
         if(!testCases.contains(testCase)){
             testCases.add(TrackerItemReferenceWrapperDto.wrap(testCase));
-            setUpdatedTestCasesInTestSet(testSet,testCases);
+            setUpdatedTestCasesInTestSet(testSet,testCases, event);
         }
     }
 
-    private void setUpdatedTestCasesInTestSet(TrackerItemDto testSet, List<TrackerItemReferenceWrapperDto> testCases) {
+    private void setUpdatedTestCasesInTestSet(TrackerItemDto testSet, List<TrackerItemReferenceWrapperDto> testCases, BaseEvent event) {
         testSet.setTableColumn(0,0, new ArrayList<>());
         for(int i = 0; i < testCases.size(); i++) {
             testSet.setTableReferenceCell(0,i,0, new TrackerItemReferenceWrapperDto(testCases.get(i)));
         }
         try {
-            trackerItemManager.getTrackerItemDao().update(testSet);
+            ActionData actionData = new ActionData(event.getRequest());
+            actionData.getRequest().setAttribute("triggeredBySameListener", Boolean.TRUE);
+            trackerItemManager.update(event.getUser(),testSet, actionData);
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
