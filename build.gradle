@@ -1,5 +1,5 @@
 ext {
-    codebeamerVersion = "2.1+"
+    codebeamerVersion = "2.1.0.1-SNAPSHOT2"
 }
 
 allprojects {
