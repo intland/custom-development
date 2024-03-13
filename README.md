@@ -4,7 +4,7 @@ Download JDK from [adoptium.net](https://adoptium.net/temurin/releases/)
 
 ## How to compile the project
 ```
-JAVA_HOME=/home/user/JDK/jdk-11 ./gradlew clean jar
+JAVA_HOME=/home/user/JDK/jdk-17 ./gradlew clean jar
 ```
 
 ## For Developers
