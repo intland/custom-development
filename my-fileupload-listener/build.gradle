@@ -1,0 +1,7 @@
+plugins {
+    id 'java'
+}
+
+dependencies {
+    implementation group: 'xyz.capybara', name: 'clamav-client', version: '2.1.2'
+}
