@@ -1,5 +1,5 @@
 ext {
-    codebeamerVersion = "2.1.0.1-SNAPSHOT2"
+    codebeamerVersion = "2.2.0.0"
 }
 
 allprojects {
@@ -11,8 +11,8 @@ subprojects {
     apply plugin: 'java'
 
     java {
-        sourceCompatibility = JavaVersion.VERSION_17
-        targetCompatibility = JavaVersion.VERSION_17
+        sourceCompatibility = JavaVersion.VERSION_21
+        targetCompatibility = JavaVersion.VERSION_21
     }
 
     compileJava.options.encoding = "UTF-8"
