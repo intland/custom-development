@@ -1,0 +1,1 @@
+Example for creating custom table using codebeamer built in framework
