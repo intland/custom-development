@@ -7,3 +7,6 @@ include ':my-openapi-project'
 include ':my-file-processor'
 include ':my-gitpr-project'
 include ':customization-rest-controller'
+include ':welcome-api'
+include ':example-swagger-api'
+
