@@ -8,3 +8,6 @@ include ':my-file-processor'
 include ':my-gitpr-project'
 include ':my-custom-table'
 include ':customization-rest-controller'
+include ':welcome-api'
+include ':example-swagger-api'
+
